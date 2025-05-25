@@ -1,156 +1,202 @@
 # A股基本面分析Agent
 
-这是一个基于Tushare API和Deepseek AI的A股基本面分析工具，能够帮助投资者系统性地收集和分析上市公司的基本面数据。
+基于Tushare API的A股基本面数据收集和分析系统，采用双格式存储方案。
 
-## 功能特点
+## 📋 功能特性
 
-### 阶段一：数据收集
-- 自动获取所有A股公司基本信息
-- 收集近7年的核心财务数据：
-  - ROE（净资产收益率）
-  - 毛利率和净利率
-  - PE市盈率
-  - 股息率
-- 智能缓存机制，支持断点续传
-- 批量处理，每50只股票一个缓存文件
-- 生成完整的Excel数据表格
+### 数据收集
+- **全市场覆盖**：自动收集所有A股上市公司数据
+- **核心指标**：ROE、PE、PB、股息率、毛利率、净利率（2019-2023年，5年数据）
+- **财务安全指标**：资产负债率、流动比率
+- **运营效率指标**：总资产周转率、现金流质量比率
+- **智能筛选**：自动过滤ST股票和连续亏损企业
+- **断点续传**：支持缓存和中断恢复
 
-### 阶段二：深度分析
-- 基于Deepseek AI的专业分析
-- 对选定股票进行深度基本面分析
-- 生成详细的Markdown分析报告
-- 包含投资建议和风险评估
+### 双格式存储
+1. **Excel格式**（便于查看）
+   - 简洁视图，核心指标一目了然
+   - 多工作表优化布局
+   - 投资建议自动生成
 
-## 项目结构
+2. **SQLite数据库**（便于查询）
+   - 标准化数据结构
+   - 强大的SQL查询功能
+   - 便于程序化分析
 
+### AI分析
+- 集成Deepseek-R1 API
+- 三阶分析框架：商业本质→财务健康→安全边际
+- 自动生成投资分析报告
+
+## 🗄️ 数据库结构
+
+### 表结构
+```sql
+-- 股票基本信息表
+CREATE TABLE stocks (
+    stock_code TEXT PRIMARY KEY,  -- 股票代码
+    stock_name TEXT,              -- 股票名称
+    industry TEXT,                -- 所属行业
+    list_date TEXT,               -- 上市日期
+    created_at TIMESTAMP          -- 创建时间
+);
+
+-- 财务指标表
+CREATE TABLE financial_metrics (
+    stock_code TEXT,    -- 股票代码
+    year INTEGER,       -- 年份
+    metric_name TEXT,   -- 指标名称（roe/pe/pb/dividend/gross_margin/net_margin/debt_ratio/current_ratio/asset_turnover/ocf_to_profit）
+    metric_value REAL,  -- 指标数值
+    created_at TIMESTAMP
+);
 ```
-Aagent/
-├── collect_data.py          # 数据收集程序
-├── analyze_stocks.py        # AI分析程序
-├── stock_analyzer.py        # 基础分析类
-├── main.py                  # 原始分析程序（单股票）
-├── config.py               # 配置文件
-├── .env.template           # 环境变量模板
-├── requirements.txt        # 依赖包
-├── system_prompt.md        # AI分析提示词
-├── cache/                  # 数据缓存目录
-├── logs/                   # 日志文件目录
-├── reports/                # 图表报告目录
-├── analysis_reports/       # AI分析报告目录
-└── stock_analysis_data.xlsx # 最终数据表格
+
+### 常用查询示例
+```sql
+-- 查找高ROE股票
+SELECT s.stock_name, fm.metric_value as roe
+FROM stocks s JOIN financial_metrics fm ON s.stock_code = fm.stock_code
+WHERE fm.metric_name = 'roe' AND fm.year = 2023 AND fm.metric_value >= 15
+ORDER BY fm.metric_value DESC;
+
+-- 价值股筛选（高ROE + 低PE + 低PB）
+SELECT s.stock_name, roe.metric_value as roe, pe.metric_value as pe, pb.metric_value as pb
+FROM stocks s
+JOIN financial_metrics roe ON s.stock_code = roe.stock_code
+JOIN financial_metrics pe ON s.stock_code = pe.stock_code  
+JOIN financial_metrics pb ON s.stock_code = pb.stock_code
+WHERE roe.metric_name = 'roe' AND roe.year = 2023 AND roe.metric_value >= 15
+AND pe.metric_name = 'pe' AND pe.year = 2023 AND pe.metric_value <= 20
+AND pb.metric_name = 'pb' AND pb.year = 2023 AND pb.metric_value <= 3;
+
+-- 财务安全股票（低负债率 + 高流动比率）
+SELECT s.stock_name, debt.metric_value as debt_ratio, current.metric_value as current_ratio
+FROM stocks s
+JOIN financial_metrics debt ON s.stock_code = debt.stock_code
+JOIN financial_metrics current ON s.stock_code = current.stock_code
+WHERE debt.metric_name = 'debt_ratio' AND debt.year = 2023 AND debt.metric_value <= 0.5
+AND current.metric_name = 'current_ratio' AND current.year = 2023 AND current.metric_value >= 1.5;
 ```
 
-## 安装说明
+## 🚀 快速开始
 
-1. 克隆项目到本地：
+### 环境准备
 ```bash
-git clone git@github.com:ahriy/Aagent.git
+# 1. 克隆项目
+git clone <repository-url>
 cd Aagent
-```
 
-2. 安装依赖：
-```bash
+# 2. 安装依赖
 pip install -r requirements.txt
+
+# 3. 配置API密钥
+# 编辑 config.py，设置你的 TUSHARE_TOKEN
 ```
 
-3. 配置环境变量：
+### 数据收集
 ```bash
-# 复制环境变量模板
-cp .env.template .env
-
-# 编辑.env文件，填入您的API密钥
-# TUSHARE_TOKEN=你的tushare_token
-# DEEPSEEK_API_KEY=你的deepseek_api_key
-```
-
-## 使用方法
-
-### 1. 数据收集阶段
-
-收集所有A股数据（约需1-2小时）：
-```bash
+# 收集所有A股数据（双格式输出）
 python collect_data.py
+
+# 限制股票数量（测试）
+python collect_data.py --limit 100
+
+# 自定义时间范围
+python collect_data.py --start-year 2020 --end-year 2024
 ```
 
-测试模式（只处理10只股票）：
+### 数据查询
 ```bash
-python collect_data.py --limit 10
+# 运行查询示例
+python query_examples.py
+
+# 或者直接使用
+from query_examples import StockQueryHelper
+helper = StockQueryHelper()
+value_stocks = helper.find_value_stocks(min_roe=15, max_pe=20)
 ```
 
-### 2. 数据分析阶段
-
-在Excel文件中将需要分析的股票"是否分析"列设为TRUE，然后运行：
+### AI分析
 ```bash
+# 1. 在Excel中标记需要分析的股票（need_analysis=True）
+# 2. 配置 Deepseek API 密钥
+# 3. 运行分析
 python analyze_stocks.py
 ```
 
-### 3. 单股票分析（旧版本）
+## 📊 输出文件
 
-分析单只股票：
-```bash
-python main.py
-```
+### Excel文件
+- `stock_analysis_data.xlsx` - 原始数据（所有指标）
+- `stock_analysis_optimized.xlsx` - 优化视图（多工作表）
+- `analysis_suggestions.txt` - 投资建议
 
-## 配置说明
-
-主要配置项在 `config.py` 中：
-
-- **数据收集配置**：缓存目录、批次大小、请求延迟
-- **分析配置**：报告目录、分析指标、阈值设置
-- **API配置**：请求间隔、重试次数
-
-敏感配置项在 `.env` 文件中：
-- `TUSHARE_TOKEN`：Tushare Pro API token
-- `DEEPSEEK_API_KEY`：Deepseek AI API密钥
-
-## 输出说明
-
-### 数据文件
-- `stock_analysis_data.xlsx`：包含所有A股基本面数据的Excel文件
-- `cache/batch_*.json`：分批缓存的原始数据
+### SQLite数据库
+- `stock_analysis.db` - 完整数据库文件
 
 ### 分析报告
-- `analysis_reports/`：AI生成的Markdown分析报告
-- `reports/`：图表和基础分析报告
+- `analysis_reports/*.md` - 个股深度分析报告
 
-### 日志文件
-- `logs/`：详细的运行日志，用于调试和监控
+## 🔧 高级用法
 
-## API要求
+### 自定义查询
+```python
+import sqlite3
+import pandas as pd
 
-### Tushare Pro
-- 注册账号：https://tushare.pro/
-- 获取API token
-- 建议使用积分较高的账号以获得更好的数据权限
+# 连接数据库
+conn = sqlite3.connect('stock_analysis.db')
 
-### Deepseek AI
-- 注册账号：https://platform.deepseek.com/
-- 获取API密钥
-- 按使用量付费
+# 复杂筛选示例
+query = """
+SELECT s.stock_name, s.industry,
+       AVG(CASE WHEN fm.metric_name = 'roe' THEN fm.metric_value END) as avg_roe,
+       AVG(CASE WHEN fm.metric_name = 'pe' THEN fm.metric_value END) as avg_pe
+FROM stocks s
+JOIN financial_metrics fm ON s.stock_code = fm.stock_code
+WHERE fm.year BETWEEN 2021 AND 2023
+GROUP BY s.stock_code, s.stock_name, s.industry
+HAVING avg_roe >= 15 AND avg_pe <= 20
+ORDER BY avg_roe DESC;
+"""
 
-## 注意事项
+result = pd.read_sql_query(query, conn)
+conn.close()
+```
 
-- **数据权限**：确保Tushare账号有足够积分访问所需数据
-- **请求频率**：程序已内置请求延迟，避免触发API限制
-- **存储空间**：全量数据收集需要约100MB存储空间
-- **运行时间**：首次数据收集需要1-2小时
-- **数据更新**：建议定期运行数据收集程序更新数据
-- **投资风险**：分析结果仅供参考，投资决策请自行判断
+### 添加自定义指标
+修改 `collect_data.py` 中的数据收集逻辑，添加新的财务指标。
 
-## 技术特性
+## 📈 投资策略模板
 
-- **智能缓存**：支持断点续传，避免重复下载
-- **批量处理**：高效处理大量股票数据
-- **错误处理**：完善的异常处理和重试机制
-- **日志记录**：详细的运行日志便于问题排查
-- **配置灵活**：支持各种参数调整和定制
+系统内置多种筛选策略：
+- **价值投资**：高ROE + 低PE + 低PB
+- **股息投资**：高股息率 + 稳定分红
+- **成长投资**：高ROE + 营收增长
+- **行业分析**：同行业财务指标对比
 
-## 版本要求
+## ⚠️ 注意事项
 
-- Python 3.8+
-- 推荐使用虚拟环境
-- 网络连接稳定（用于API调用）
+1. **API限制**：Tushare有频率限制，程序会自动处理
+2. **数据质量**：自动过滤异常数据，但建议人工复核
+3. **投资风险**：本工具仅供参考，投资决策需谨慎
+4. **数据更新**：建议定期重新运行收集程序
 
-## 开源协议
+## 🛠️ 开发计划
 
-本项目遵循MIT开源协议，欢迎贡献代码和反馈问题。 
+- [ ] 添加更多财务指标（资产负债率、现金流等）
+- [ ] Web界面开发
+- [ ] 实时数据更新
+- [ ] 更多AI分析模型
+- [ ] 回测系统
+
+## 📞 支持
+
+如有问题，请查看：
+1. 日志文件（`logs/` 目录）
+2. 缓存状态（`cache/` 目录）
+3. 数据库完整性检查
+
+---
+
+**免责声明**：本工具仅用于学习和研究，投资有风险，入市需谨慎。 

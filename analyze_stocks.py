@@ -165,8 +165,8 @@ def load_config():
     # API密钥
     config['api_key'] = os.getenv('DEEPSEEK_API_KEY')
     if not config['api_key']:
-        logger.error("未找到DEEPSEEK_API_KEY环境变量，请设置API密钥")
-        logger.info("请在.env文件中添加：DEEPSEEK_API_KEY=your_api_key_here")
+        logger.warning("未找到DEEPSEEK_API_KEY环境变量，将使用模拟分析")
+        logger.info("如需使用API分析，请在.env文件中添加：DEEPSEEK_API_KEY=your_api_key_here")
         return None
     
     # API URL
