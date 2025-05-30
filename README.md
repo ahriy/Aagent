@@ -1,202 +1,212 @@
-# A股基本面分析Agent
+# 🎯 A股价值投资分析系统
 
-基于Tushare API的A股基本面数据收集和分析系统，采用双格式存储方案。
+一个基于Python的A股价值投资分析系统，融合巴菲特、查理芒格、格雷厄姆三位投资大师的智慧，帮助投资者发现具有长期投资价值的股票。
 
-## 📋 功能特性
+## ✨ 核心功能
 
-### 数据收集
-- **全市场覆盖**：自动收集所有A股上市公司数据
-- **核心指标**：ROE、PE、PB、股息率、毛利率、净利率（2019-2023年，5年数据）
-- **财务安全指标**：资产负债率、流动比率
-- **运营效率指标**：总资产周转率、现金流质量比率
-- **智能筛选**：自动过滤ST股票和连续亏损企业
-- **断点续传**：支持缓存和中断恢复
+### 📊 数据收集系统
+- **多Token管理**：智能切换Tushare API token，避免频率限制
+- **断点续传**：支持中断后继续收集，提高效率
+- **智能过滤**：自动跳过连续3年亏损的股票
+- **批量处理**：分批处理5,000+只股票数据
+- **SQLite存储**：高效的本地数据库存储
 
-### 双格式存储
-1. **Excel格式**（便于查看）
-   - 简洁视图，核心指标一目了然
-   - 多工作表优化布局
-   - 投资建议自动生成
+### 🧠 价值投资Agent
+融合三位投资大师的理念：
 
-2. **SQLite数据库**（便于查询）
-   - 标准化数据结构
-   - 强大的SQL查询功能
-   - 便于程序化分析
+#### 🏆 巴菲特标准 (权重40%)
+- 持续高ROE (>15%)
+- 低债务比率 (<30%)
+- 稳定盈利能力
+- 强劲现金流
 
-### AI分析
-- 集成Deepseek-R1 API
-- 三阶分析框架：商业本质→财务健康→安全边际
-- 自动生成投资分析报告
+#### 🧠 查理芒格标准 (权重30%)
+- 优质行业选择
+- 高经营效率
+- 强定价权（高毛利率）
+- 合理估值
 
-## 🗄️ 数据库结构
+#### 📚 格雷厄姆标准 (权重30%)
+- 低PE估值 (<15x)
+- 低PB比率 (<2x)
+- 安全边际充足
+- 稳定股息回报
 
-### 表结构
-```sql
--- 股票基本信息表
-CREATE TABLE stocks (
-    stock_code TEXT PRIMARY KEY,  -- 股票代码
-    stock_name TEXT,              -- 股票名称
-    industry TEXT,                -- 所属行业
-    list_date TEXT,               -- 上市日期
-    created_at TIMESTAMP          -- 创建时间
-);
-
--- 财务指标表
-CREATE TABLE financial_metrics (
-    stock_code TEXT,    -- 股票代码
-    year INTEGER,       -- 年份
-    metric_name TEXT,   -- 指标名称（roe/pe/pb/dividend/gross_margin/net_margin/debt_ratio/current_ratio/asset_turnover/ocf_to_profit）
-    metric_value REAL,  -- 指标数值
-    created_at TIMESTAMP
-);
-```
-
-### 常用查询示例
-```sql
--- 查找高ROE股票
-SELECT s.stock_name, fm.metric_value as roe
-FROM stocks s JOIN financial_metrics fm ON s.stock_code = fm.stock_code
-WHERE fm.metric_name = 'roe' AND fm.year = 2023 AND fm.metric_value >= 15
-ORDER BY fm.metric_value DESC;
-
--- 价值股筛选（高ROE + 低PE + 低PB）
-SELECT s.stock_name, roe.metric_value as roe, pe.metric_value as pe, pb.metric_value as pb
-FROM stocks s
-JOIN financial_metrics roe ON s.stock_code = roe.stock_code
-JOIN financial_metrics pe ON s.stock_code = pe.stock_code  
-JOIN financial_metrics pb ON s.stock_code = pb.stock_code
-WHERE roe.metric_name = 'roe' AND roe.year = 2023 AND roe.metric_value >= 15
-AND pe.metric_name = 'pe' AND pe.year = 2023 AND pe.metric_value <= 20
-AND pb.metric_name = 'pb' AND pb.year = 2023 AND pb.metric_value <= 3;
-
--- 财务安全股票（低负债率 + 高流动比率）
-SELECT s.stock_name, debt.metric_value as debt_ratio, current.metric_value as current_ratio
-FROM stocks s
-JOIN financial_metrics debt ON s.stock_code = debt.stock_code
-JOIN financial_metrics current ON s.stock_code = current.stock_code
-WHERE debt.metric_name = 'debt_ratio' AND debt.year = 2023 AND debt.metric_value <= 0.5
-AND current.metric_name = 'current_ratio' AND current.year = 2023 AND current.metric_value >= 1.5;
-```
+### 📈 分析工具
+- **股票筛选器**：基于多维度指标筛选价值股票
+- **详细报告**：生成专业的投资分析报告
+- **数据质量检查**：确保数据完整性和准确性
 
 ## 🚀 快速开始
 
-### 环境准备
+### 1. 环境配置
 ```bash
-# 1. 克隆项目
+# 克隆项目
 git clone <repository-url>
 cd Aagent
 
-# 2. 安装依赖
+# 创建虚拟环境
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# 或 .venv\Scripts\activate  # Windows
+
+# 安装依赖
 pip install -r requirements.txt
-
-# 3. 配置API密钥
-# 编辑 config.py，设置你的 TUSHARE_TOKEN
 ```
 
-### 数据收集
-```bash
-# 收集所有A股数据（双格式输出）
-python collect_data.py
-
-# 限制股票数量（测试）
-python collect_data.py --limit 100
-
-# 自定义时间范围
-python collect_data.py --start-year 2020 --end-year 2024
-```
-
-### 数据查询
-```bash
-# 运行查询示例
-python query_examples.py
-
-# 或者直接使用
-from query_examples import StockQueryHelper
-helper = StockQueryHelper()
-value_stocks = helper.find_value_stocks(min_roe=15, max_pe=20)
-```
-
-### AI分析
-```bash
-# 1. 在Excel中标记需要分析的股票（need_analysis=True）
-# 2. 配置 Deepseek API 密钥
-# 3. 运行分析
-python analyze_stocks.py
-```
-
-## 📊 输出文件
-
-### Excel文件
-- `stock_analysis_data.xlsx` - 原始数据（所有指标）
-- `stock_analysis_optimized.xlsx` - 优化视图（多工作表）
-- `analysis_suggestions.txt` - 投资建议
-
-### SQLite数据库
-- `stock_analysis.db` - 完整数据库文件
-
-### 分析报告
-- `analysis_reports/*.md` - 个股深度分析报告
-
-## 🔧 高级用法
-
-### 自定义查询
+### 2. 配置API Token
+在 `config.py` 中配置您的Tushare token：
 ```python
-import sqlite3
-import pandas as pd
-
-# 连接数据库
-conn = sqlite3.connect('stock_analysis.db')
-
-# 复杂筛选示例
-query = """
-SELECT s.stock_name, s.industry,
-       AVG(CASE WHEN fm.metric_name = 'roe' THEN fm.metric_value END) as avg_roe,
-       AVG(CASE WHEN fm.metric_name = 'pe' THEN fm.metric_value END) as avg_pe
-FROM stocks s
-JOIN financial_metrics fm ON s.stock_code = fm.stock_code
-WHERE fm.year BETWEEN 2021 AND 2023
-GROUP BY s.stock_code, s.stock_name, s.industry
-HAVING avg_roe >= 15 AND avg_pe <= 20
-ORDER BY avg_roe DESC;
-"""
-
-result = pd.read_sql_query(query, conn)
-conn.close()
+TUSHARE_TOKENS = [
+    "your_token_1_here",
+    "your_token_2_here"  # 可选，支持多token
+]
 ```
 
-### 添加自定义指标
-修改 `collect_data.py` 中的数据收集逻辑，添加新的财务指标。
+### 3. 数据收集
+```bash
+# 收集2020-2024年的股票数据
+python collect_data.py --start-year 2020 --end-year 2024
 
-## 📈 投资策略模板
+# 测试收集（限制10只股票）
+python collect_data.py --limit 10
+```
 
-系统内置多种筛选策略：
-- **价值投资**：高ROE + 低PE + 低PB
-- **股息投资**：高股息率 + 稳定分红
-- **成长投资**：高ROE + 营收增长
-- **行业分析**：同行业财务指标对比
+### 4. 价值投资分析
+```bash
+# 筛选价值股票（最低分数60分，限制30只）
+python value_investment_agent.py --min-score 60 --limit 30
 
-## ⚠️ 注意事项
+# 分析单个股票
+python value_investment_agent.py --stock-code 000001.SZ
 
-1. **API限制**：Tushare有频率限制，程序会自动处理
-2. **数据质量**：自动过滤异常数据，但建议人工复核
-3. **投资风险**：本工具仅供参考，投资决策需谨慎
-4. **数据更新**：建议定期重新运行收集程序
+# 生成自定义报告
+python value_investment_agent.py --min-score 50 --output my_report.md
+```
 
-## 🛠️ 开发计划
+## 📁 项目结构
 
-- [ ] 添加更多财务指标（资产负债率、现金流等）
-- [ ] Web界面开发
-- [ ] 实时数据更新
-- [ ] 更多AI分析模型
-- [ ] 回测系统
+```
+📁 Aagent/
+├── 🔧 核心收集器
+│   └── collect_data.py            ⭐ 数据收集器（多Token支持）
+│
+├── 🧠 价值投资Agent
+│   └── value_investment_agent.py  ⭐ 价值投资分析引擎
+│
+├── 📊 分析工具
+│   ├── analyze_stocks.py          📈 股票分析工具
+│   ├── stock_analyzer.py          🔍 深度分析器
+│   └── import_cache_to_db.py      📁 缓存数据导入工具
+│
+├── 🔍 查询脚本
+│   ├── queries/                   📋 正式查询脚本目录
+│   │   ├── query_dividend_ranking.py  💰 股息排名查询
+│   │   ├── query_dividend_yield.py    📊 股息率排名查询
+│   │   └── README.md              📖 查询脚本说明
+│   │
+│   └── tmp/                       🧪 临时脚本目录
+│       ├── test_connection.py     🔗 数据库连接测试
+│       ├── test_collect_data.py   🧪 数据收集测试
+│       ├── check_data.py          ✅ 数据检查工具
+│       ├── data_quality_report.py 📋 数据质量报告
+│       ├── query_examples.py      📝 查询示例
+│       └── README.md              📖 临时脚本说明
+│
+├── ⚙️ 配置文件
+│   ├── config.py                  🔧 配置管理
+│   ├── main.py                    🚀 统一入口
+│   └── requirements.txt           📦 依赖管理
+│
+├── 📚 文档
+│   ├── README.md                  📖 项目说明
+│   ├── TOKEN_CONFIG.md            🔑 Token配置指南
+│   ├── PROJECT_OPTIMIZATION.md    📊 优化记录
+│   └── system_prompt.md           🤖 系统提示
+│
+└── 📁 数据目录
+    ├── cache/                     💾 缓存文件
+    ├── logs/                      📝 日志文件
+    └── stock_analysis.db          🗄️ SQLite数据库
+```
 
-## 📞 支持
+## 🎯 使用示例
 
-如有问题，请查看：
-1. 日志文件（`logs/` 目录）
-2. 缓存状态（`cache/` 目录）
-3. 数据库完整性检查
+### 价值投资分析示例
+```bash
+# 发现高质量价值股票
+python value_investment_agent.py --min-score 70 --limit 20
+
+# 输出示例：
+🌟 发现 3 只价值股票:
+--------------------------------------------------------------------------------
+ 1. 深物业A       (000011.SZ) | 得分:  75.2 | A 推荐买入     | 房产服务
+ 2. 平安银行       (000001.SZ) | 得分:  72.8 | A 推荐买入     | 银行
+ 3. 万科A        (000002.SZ) | 得分:  70.1 | A 推荐买入     | 全国地产
+
+📋 详细报告已生成: value_investment_report_20250525_184848.md
+```
+
+### 单股分析示例
+```bash
+python value_investment_agent.py --stock-code 000001.SZ
+
+# 输出示例：
+🎯 平安银行 (000001.SZ)
+📊 综合评分: 72.8/100 - A 推荐买入
+🏭 所属行业: 银行
+
+🏆 巴菲特分析 (75/100):
+   🌟 卓越ROE: 18.5% (>20%)
+   💪 低债务负担: 15.2% (<20%)
+   📈 持续盈利: 净利率 23.7%
+
+🧠 芒格分析 (70/100):
+   🎯 优质行业: 银行
+   💰 合理估值: PE 8.6x
+
+📚 格雷厄姆分析 (75/100):
+   🎯 低估值: PE 8.6x (<10)
+   💎 破净股: PB 0.85x (<1)
+   ✅ 资产正增长: 9.4%
+```
+
+## 🔧 高级功能
+
+### 多Token管理
+系统支持多个Tushare token自动切换：
+- **智能检测**：自动识别API限制
+- **无缝切换**：token耗尽时自动切换
+- **重试机制**：指数退避重试策略
+- **统计监控**：详细的请求成功率统计
+
+### 数据质量保证
+- **智能过滤**：跳过连续亏损股票
+- **数据验证**：确保财务指标合理性
+- **缓存机制**：避免重复请求
+- **断点续传**：支持中断后继续
+
+### 投资评分体系
+- **多维度评估**：ROE、债务率、估值、增长等
+- **权重分配**：巴菲特40% + 芒格30% + 格雷厄姆30%
+- **等级划分**：A+/A/B+/B/C 五级评分
+- **详细解释**：每个评分点都有具体说明
+
+## ⚠️ 重要声明
+
+1. **投资风险**：本系统仅基于历史财务数据分析，不构成投资建议
+2. **数据延迟**：财务数据存在滞后性，请结合实时信息
+3. **风险控制**：投资有风险，入市需谨慎
+4. **长期视角**：价值投资需要长期持有，避免短期投机
+
+## 🤝 贡献指南
+
+欢迎提交Issue和Pull Request来改进这个项目！
+
+## 📄 许可证
+
+MIT License
 
 ---
 
-**免责声明**：本工具仅用于学习和研究，投资有风险，入市需谨慎。 
+*让价值投资的智慧指引您的投资决策* 🎯 

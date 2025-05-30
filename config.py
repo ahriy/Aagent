@@ -34,8 +34,9 @@ ANALYSIS_CONFIG = {
     'min_net_margin': 10.0
 }
 
-# Deepseek API配置
-DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
+# Deepseek API配置 - 已关闭AI分析功能
+# DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
+DEEPSEEK_API_KEY = ''  # 关闭AI分析功能
 API_URL = os.getenv('API_URL', 'https://api.siliconflow.cn/v1/chat/completions')
 
 # 数据收集配置

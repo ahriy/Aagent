@@ -805,6 +805,7 @@ def main():
     parser.add_argument('--end-year', type=int, default=2023, help='结束年份')
     parser.add_argument('--no-optimize', action='store_true', help='不生成优化Excel视图')
     parser.add_argument('--no-delay', action='store_true', help='不使用延时，最快速度运行（可能触发API限制）')
+    parser.add_argument('--no-realtime-db', action='store_true', help='不实时更新数据库，仅在最后统一保存')
     
     args = parser.parse_args()
     
@@ -869,6 +870,16 @@ def main():
             if batch_data:
                 batch_results = process_stock_data(batch_data)
                 all_results.extend(batch_results)
+                
+                # 🔄 实时保存当前批次到数据库
+                if batch_results:
+                    batch_df = pd.DataFrame(batch_results)
+                    if not args.no_realtime_db:
+                        save_to_sqlite(batch_df)
+                        logger.info(f"✅ 批次 {i+1} 数据已保存到数据库（{len(batch_results)}只股票）")
+                    else:
+                        logger.info(f"📦 批次 {i+1} 数据已缓存（{len(batch_results)}只股票），将在最后统一保存")
+                
                 logger.info(f"完成第 {i+1}/{total_batches} 批次处理，当前已处理 {len(all_results)} 只股票")
         
         # 保存最终结果
@@ -928,8 +939,14 @@ def main():
             else:
                 logger.info("已跳过优化Excel视图生成（使用--no-optimize参数）")
                 
-            # 保存到SQLite数据库
-            save_to_sqlite(df)
+            # 数据库保存逻辑
+            if args.no_realtime_db:
+                # 统一保存所有数据到数据库
+                save_to_sqlite(df)
+                logger.info("📊 所有数据已统一保存到SQLite数据库")
+            else:
+                # 数据已在批次处理时实时保存到数据库
+                logger.info("📊 所有批次数据已实时保存到SQLite数据库")
             
         else:
             logger.error("没有收集到任何数据")
